@@ -103,27 +103,24 @@ public class SchedulerFragment extends Fragment {
         EditText etDescription = dialogView.findViewById(R.id.etDescription);
         EditText etDateTime = dialogView.findViewById(R.id.etDateTime);
         EditText etTaskStatus = dialogView.findViewById(R.id.etTaskStatus);
-        Button btnSave = dialogView.findViewById(R.id.btnSave);
+
+        etDateTime.setOnClickListener(v -> showDateTimePicker(etDateTime));
 
         AlertDialog dialog = new AlertDialog.Builder(requireContext())
                 .setTitle("Add New Task")
                 .setView(dialogView)
                 .setNegativeButton("Cancel", null)
+                .setPositiveButton("Save", (d, which) -> {
+                    Tasks task=new Tasks(0,etTaskName.getText().toString(),etDescription.getText().toString(),etDateTime.getText().toString(),etTaskStatus.getText().toString());
+
+                    if (!task.getTitle().isEmpty() && !task.Date.isEmpty()) {
+                        addTask(task);
+                    } else {
+                        Toast.makeText(requireContext(), "Please fill all fields", Toast.LENGTH_SHORT).show();
+                    }
+                })
                 .create();
 
-        etDateTime.setOnClickListener(v -> showDateTimePicker(etDateTime));
-
-        // 5. Handle Save button
-        btnSave.setOnClickListener(v -> {
-            Tasks task=new Tasks(0,etTaskName.getText().toString(),etDescription.getText().toString(),etDateTime.getText().toString(),etTaskStatus.getText().toString());
-
-            if (!task.getTitle().isEmpty() && !task.Date.isEmpty()) {
-                addTask(task);
-                dialog.dismiss();
-            } else {
-                Toast.makeText(requireContext(), "Please fill all fields", Toast.LENGTH_SHORT).show();
-            }
-        });
 
         // 6. Show the dialog
         dialog.show();
