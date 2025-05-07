@@ -3,6 +3,8 @@ package com.example.taskscheduler;
 import android.app.AlertDialog;
 import android.app.DatePickerDialog;
 import android.app.TimePickerDialog;
+import android.appwidget.AppWidgetManager;
+import android.content.ComponentName;
 import android.content.Context;
 import android.os.Bundle;
 
@@ -132,6 +134,11 @@ public class SchedulerFragment extends Fragment {
         db.close();
         Tasks.add(task);
         adapter.notifyDataSetChanged();
+
+        AppWidgetManager manager = AppWidgetManager.getInstance(requireContext());
+        ComponentName widget = new ComponentName(requireContext(), AddTaskWidget.class);
+        manager.notifyAppWidgetViewDataChanged(manager.getAppWidgetIds(widget), R.id.lvWidgetTasks);
+
     }
     private void showDateTimePicker(EditText targetEditText) {
         Calendar calendar = Calendar.getInstance();

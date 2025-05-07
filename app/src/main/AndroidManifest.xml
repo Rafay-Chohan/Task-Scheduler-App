@@ -2,7 +2,9 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
 
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <application
+        android:name=".MyApplication"
         android:allowBackup="true"
         android:dataExtractionRules="@xml/data_extraction_rules"
         android:fullBackupContent="@xml/backup_rules"
@@ -12,6 +14,24 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.TaskScheduler"
         tools:targetApi="31">
+        <receiver
+            android:name=".AddTaskWidget"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/add_task_widget_info" />
+        </receiver>
+
+        <service
+            android:name=".TaskRemoteViewsService"
+            android:permission="android.permission.BIND_REMOTEVIEWS"
+            android:exported="false"/>
+
+
         <activity
             android:name=".NotificationFragment"
             android:exported="false" />

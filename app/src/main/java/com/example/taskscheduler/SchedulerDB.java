@@ -19,16 +19,18 @@ import java.util.concurrent.TimeUnit;
 public class SchedulerDB {
     final String DATABASE_NAME = "Taskdb";
     final String TABLE_NAME = "task_table";
-    final String COLUMN_ID = "_id";
+    final String COLUMN_ID = "task_id";
     final String COLUMN_TITLE = "task_title";
     final String COLUMN_DESCRIPTION = "task_description";
     final String COLUMN_DATE = "task_date";
     final String COLUMN_STATUS = "task_status";
+    final String COLUMN_NOTIFIED="task_notified";
     final String TABLE2_NAME = "notification_table";
     final String COLUMN2_ID = "_id";
     final String COLUMN2_TITLE = "notification_message";
     final String COLUMN2_DATE = "notification_date";
-    final int DATABASE_VERSION = 7;
+
+    final int DATABASE_VERSION = 9;
 
     MyOpenHelper helper;
     SQLiteDatabase sqLiteDatabase;
@@ -57,10 +59,11 @@ public class SchedulerDB {
         return sqLiteDatabase.insert(TABLE_NAME, null, cv);
     }
 
-    public long addNotification(Notifications notification){
+    public long addNotification(Notifications notification, int taskId){
         ContentValues cv = new ContentValues();
         cv.put(COLUMN2_TITLE, notification.getMessage());
         cv.put(COLUMN2_DATE, notification.getDate());
+        cv.put(COLUMN_ID,taskId);
 
         return sqLiteDatabase.insert(TABLE2_NAME, null, cv);
     }
@@ -91,6 +94,17 @@ public class SchedulerDB {
     }
     public int deleteNotification(int id)
     {
+        // Query tasks due within the next hour
+        String query = "SELECT * FROM " + TABLE2_NAME +
+                " WHERE "+COLUMN2_ID+" = ?";
+
+        Cursor cursor = sqLiteDatabase.rawQuery(query, new String[]{String.valueOf(id)});
+
+        int index_id = cursor.getColumnIndex(COLUMN_ID);
+        cursor.moveToNext();
+        int taskId = cursor.getInt(index_id);
+        UnmarkTaskAsNotified(taskId);
+
         return sqLiteDatabase.delete(TABLE2_NAME, COLUMN2_ID+"=?", new String[]{String.valueOf(id)});
     }
 
@@ -146,7 +160,7 @@ public class SchedulerDB {
 
     public ArrayList<Notifications> readNotificationsData(){
         String data = "";
-        String []columns = new String[]{COLUMN2_ID, COLUMN2_TITLE, COLUMN2_DATE};
+        String []columns = new String[]{COLUMN2_ID, COLUMN2_TITLE, COLUMN2_DATE,COLUMN_ID};
 
         Cursor c = sqLiteDatabase.query(TABLE2_NAME, columns, null, null, null, null, COLUMN2_DATE+" ASC");
         ArrayList<Notifications> notification=new ArrayList<>();
@@ -154,18 +168,19 @@ public class SchedulerDB {
         int index_id = c.getColumnIndex(COLUMN2_ID);
         int index_title = c.getColumnIndex(COLUMN2_TITLE);
         int index_date=c.getColumnIndex(COLUMN2_DATE);
+        int index_task_id=c.getColumnIndex(COLUMN_ID);
 
         for(c.moveToFirst(); !c.isAfterLast(); c.moveToNext())
         {
-                notification.add(new Notifications(Integer.parseInt(c.getString(index_id)),c.getString(index_title),c.getString(index_date)));
+                notification.add(new Notifications(Integer.parseInt(c.getString(index_id)),Integer.parseInt(c.getString(index_task_id)),c.getString(index_title),c.getString(index_date)));
         }
-
         c.close();
 
         return notification;
     }
 
     public void checkUpcomingTasks(){
+        NotificationHelper notiHelper=new NotificationHelper(context);
         SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault());
         Calendar calendar = Calendar.getInstance();
         String currentTime = sdf.format(calendar.getTime());
@@ -175,14 +190,16 @@ public class SchedulerDB {
 
         // Query tasks due within the next hour
         String query = "SELECT * FROM " + TABLE_NAME +
-                " WHERE "+COLUMN_DATE+" > ? AND "+COLUMN_DATE+" <= ?";
+                " WHERE "+COLUMN_DATE+" > ? AND "+COLUMN_DATE+" <= ?" + " AND " + COLUMN_NOTIFIED + " = 0";
 
         Cursor cursor = sqLiteDatabase.rawQuery(query, new String[]{currentTime, oneHourLater});
 
+        int index_id = cursor.getColumnIndex(COLUMN_ID);
         int index_title = cursor.getColumnIndex(COLUMN_TITLE);
         int index_date=cursor.getColumnIndex(COLUMN_DATE);
 
         while (cursor.moveToNext()) {
+            int taskId = cursor.getInt(index_id);
             String taskName = cursor.getString(index_title);
             String taskTime = cursor.getString(index_date);
 
@@ -200,7 +217,9 @@ public class SchedulerDB {
                 }
 
                 Notifications notifications=new Notifications(0,"Task: "+taskName+" is Due in +"+timeLeft,localDateTimeToString(LocalDateTime.now()));
-                addNotification(notifications);
+                addNotification(notifications,taskId);
+                notiHelper.showTaskNotification(taskName,timeLeft);
+                markTaskAsNotified(taskId);
             } catch (ParseException e) {
                 e.printStackTrace();
             }
@@ -208,7 +227,16 @@ public class SchedulerDB {
         cursor.close();
     }
 
-
+    private void markTaskAsNotified(int taskId) {
+        ContentValues values = new ContentValues();
+        values.put(COLUMN_NOTIFIED, 1);
+        sqLiteDatabase.update(TABLE_NAME, values, COLUMN_ID + " = ?", new String[]{String.valueOf(taskId)});
+    }
+    private void UnmarkTaskAsNotified(int taskId) {
+        ContentValues values = new ContentValues();
+        values.put(COLUMN_NOTIFIED, 0);
+        sqLiteDatabase.update(TABLE_NAME, values, COLUMN_ID + " = ?", new String[]{String.valueOf(taskId)});
+    }
     class MyOpenHelper extends SQLiteOpenHelper
     {
 
@@ -219,9 +247,9 @@ public class SchedulerDB {
 
         @Override
         public void onCreate(SQLiteDatabase db) {
-            String query = "CREATE TABLE "+TABLE_NAME+"("+COLUMN_ID+" INTEGER PRIMARY KEY AUTOINCREMENT, "+COLUMN_TITLE+" TEXT NOT NULL, "+COLUMN_DESCRIPTION+" TEXT NOT NULL, "+COLUMN_DATE+" TEXT NOT NULL, "+COLUMN_STATUS+" TEXT NOT NULL);";
+            String query = "CREATE TABLE "+TABLE_NAME+"("+COLUMN_ID+" INTEGER PRIMARY KEY AUTOINCREMENT, "+COLUMN_TITLE+" TEXT NOT NULL, "+COLUMN_DESCRIPTION+" TEXT NOT NULL, "+COLUMN_DATE+" TEXT NOT NULL, "+COLUMN_STATUS+" TEXT NOT NULL,"+COLUMN_NOTIFIED+" INTEGER DEFAULT 0);";
             db.execSQL(query);
-            String query2 = "CREATE TABLE "+TABLE2_NAME+"("+COLUMN2_ID+" INTEGER PRIMARY KEY AUTOINCREMENT, "+COLUMN2_TITLE+" TEXT NOT NULL, "+COLUMN2_DATE+" TEXT NOT NULL);";
+            String query2 = "CREATE TABLE "+TABLE2_NAME+"("+COLUMN2_ID+" INTEGER PRIMARY KEY AUTOINCREMENT, "+COLUMN2_TITLE+" TEXT NOT NULL, "+COLUMN2_DATE+" TEXT NOT NULL,"+COLUMN_ID+" INTEGER );";
             db.execSQL(query2);
         }
 

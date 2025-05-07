@@ -17,12 +17,18 @@ import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
 import androidx.fragment.app.Fragment;
 import androidx.viewpager2.widget.ViewPager2;
+import androidx.work.Constraints;
+import androidx.work.ExistingPeriodicWorkPolicy;
+import androidx.work.NetworkType;
+import androidx.work.PeriodicWorkRequest;
+import androidx.work.WorkManager;
 
 import com.google.android.material.badge.BadgeDrawable;
 import com.google.android.material.tabs.TabLayout;
 import com.google.android.material.tabs.TabLayoutMediator;
 
 import java.time.LocalDateTime;
+import java.util.concurrent.TimeUnit;
 
 public class MainActivity extends AppCompatActivity  {
 
@@ -44,7 +50,7 @@ public class MainActivity extends AppCompatActivity  {
             return insets;
         });
         init();
-
+        //scheduleHourlyNotifications();
         boolean isDarkMode = sharedPreferences.getBoolean(KEY_THEME, false);
         AppCompatDelegate.setDefaultNightMode(
                 isDarkMode ? AppCompatDelegate.MODE_NIGHT_YES : AppCompatDelegate.MODE_NIGHT_NO);
@@ -117,5 +123,22 @@ public class MainActivity extends AppCompatActivity  {
         sharedPreferences = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
     }
 
+    private void scheduleHourlyNotifications() {
+        Constraints constraints = new Constraints.Builder()
+                .setRequiredNetworkType(NetworkType.NOT_REQUIRED)
+                .setRequiresCharging(false)
+                .setRequiresBatteryNotLow(false)
+                .build();
+        PeriodicWorkRequest notificationWork =
+                new PeriodicWorkRequest.Builder(TaskNotificationWorker.class, 1, TimeUnit.MINUTES)
+                        .setInitialDelay(30, TimeUnit.SECONDS) // Start after 30 seconds
+                        .setConstraints(constraints)
+                        .build();
 
+        WorkManager.getInstance(this).enqueueUniquePeriodicWork(
+                "taskNotificationCheck",
+                ExistingPeriodicWorkPolicy.KEEP, // Keep existing if already scheduled
+                notificationWork
+        );
+    }
 }

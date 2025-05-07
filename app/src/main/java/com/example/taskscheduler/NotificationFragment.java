@@ -1,5 +1,6 @@
 package com.example.taskscheduler;
 
+import android.app.AlertDialog;
 import android.content.Context;
 import android.os.Bundle;
 
@@ -22,6 +23,7 @@ public class NotificationFragment extends Fragment {
     ListView lvNotifications;
     NotificationsAdapter adapter;
     ArrayList<Notifications> Notifications=new ArrayList<>();
+
 
     public NotificationFragment() {
         // Required empty public constructor
@@ -61,6 +63,19 @@ public class NotificationFragment extends Fragment {
         adapter = new NotificationsAdapter(c, R.layout.single_notification_list_item_design, Notifications);
         lvNotifications.setAdapter(adapter);
         loadNotifications();
+        lvNotifications.setOnItemClickListener((parent, v, position, id) -> {
+            Notifications notification = (Notifications) parent.getItemAtPosition(position);
+
+            new AlertDialog.Builder(requireContext())
+                    .setTitle("Delete Notification")
+                    .setMessage("Are you sure you want to delete this notification?")
+                    .setPositiveButton("Delete", (dialog, which) -> {
+                        // Delete from database
+                        deleteNotification(notification.getId(),position);
+                    })
+                    .setNegativeButton("Cancel", null)
+                    .show();
+        });
 
     }
 
@@ -78,6 +93,16 @@ public class NotificationFragment extends Fragment {
         db.checkUpcomingTasks();//Can be scheduled, right now hard coded
         Notifications.addAll(db.readNotificationsData());
         db.close();
+        adapter.notifyDataSetChanged();
+    }
+    private void deleteNotification(int id,int position){
+        SchedulerDB db=new SchedulerDB(requireContext());
+        db.open();
+
+        db.deleteNotification(id);
+        db.close();
+        // Refresh the list
+        Notifications.remove(position);
         adapter.notifyDataSetChanged();
     }
 }
