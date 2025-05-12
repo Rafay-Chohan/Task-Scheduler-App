@@ -185,14 +185,18 @@ public class SchedulerDB {
         Calendar calendar = Calendar.getInstance();
         String currentTime = sdf.format(calendar.getTime());
 
-        calendar.add(Calendar.HOUR, 1);
-        String oneHourLater = sdf.format(calendar.getTime());
+        calendar.set(Calendar.HOUR_OF_DAY, 23);  // 11 PM (23 in 24-hour format)
+        calendar.set(Calendar.MINUTE, 59);
+        calendar.set(Calendar.SECOND, 0);
+        calendar.set(Calendar.MILLISECOND, 0);
+
+        String today = sdf.format(calendar.getTime());
 
         // Query tasks due within the next hour
         String query = "SELECT * FROM " + TABLE_NAME +
                 " WHERE "+COLUMN_DATE+" > ? AND "+COLUMN_DATE+" <= ?" + " AND " + COLUMN_NOTIFIED + " = 0";
 
-        Cursor cursor = sqLiteDatabase.rawQuery(query, new String[]{currentTime, oneHourLater});
+        Cursor cursor = sqLiteDatabase.rawQuery(query, new String[]{currentTime, today});
 
         int index_id = cursor.getColumnIndex(COLUMN_ID);
         int index_title = cursor.getColumnIndex(COLUMN_TITLE);

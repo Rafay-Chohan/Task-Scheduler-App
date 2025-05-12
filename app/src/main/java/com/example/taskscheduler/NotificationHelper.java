@@ -1,5 +1,6 @@
 package com.example.taskscheduler;
 
+import android.app.Notification;
 import android.app.NotificationChannel;
 import android.app.NotificationManager;
 import android.app.PendingIntent;
@@ -24,7 +25,7 @@ public class NotificationHelper {
         createNotificationChannel();
     }
 
-    private void createNotificationChannel() {
+    public void createNotificationChannel() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             CharSequence name = "Task Reminders";
             String description = "Notifications for upcoming tasks";
@@ -36,6 +37,8 @@ public class NotificationHelper {
             channel.setVibrationPattern(new long[]{100, 200, 300, 400});
             channel.enableLights(true);
             channel.setLightColor(Color.BLUE);
+            channel.setShowBadge(true); // Allow app icon badges
+            channel.setLockscreenVisibility(Notification.VISIBILITY_PUBLIC);
 
             NotificationManager notificationManager =
                     context.getSystemService(NotificationManager.class);
@@ -44,6 +47,12 @@ public class NotificationHelper {
     }
 
     public void showTaskNotification(String taskTitle, String timeLeft) {
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+                ActivityCompat.checkSelfPermission(context, android.Manifest.permission.POST_NOTIFICATIONS)
+                        != PackageManager.PERMISSION_GRANTED) {
+            return; // Or handle the case where permission isn't granted
+        }
         // Create intent for when notification is tapped
         Intent intent = new Intent(context, MainActivity.class);
         intent.putExtra("fragment", "tasks");
